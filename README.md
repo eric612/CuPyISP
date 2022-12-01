@@ -1,2 +1,2 @@
 # CuPyISP
-Image pipeline CUDA version , for AI traing and simulator 
+Image pipeline CUDA version , for AI trainning and simulator 
