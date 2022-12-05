@@ -1,5 +1,8 @@
 # CuPyISP
-Image pipeline CUDA version , for AI trainning and simulator 
+Image pipeline CUDA version , for AI trainning , data augumentation , ISP simulator , ... 
 
 # ISP Flow
 ![plot](./images/output-graph.gv.png)
+
+# Processing time 
+at least < 50ms
