@@ -5,4 +5,3 @@ Image pipeline CUDA version , for AI trainning , data augumentation , ISP simula
 ![plot](./images/output-graph.gv.png)
 
 # Processing time 
-at least < 50ms
