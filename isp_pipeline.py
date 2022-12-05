@@ -73,8 +73,8 @@ def isp_pipeline(rawimg,raw_w,raw_h):
 
    
     # chroma noise filtering
-    #cnf = CNF(rawimg_awb, bayer_pattern, 0, parameter, 1023)
-    #rawimg_cnf = cnf.execute()
+    cnf = CNF(rawimg_awb, bayer_pattern, 0, parameter, 1023)
+    rawimg_cnf = cnf.execute()
     
     # color filter array interpolation
     cfa = CFA(rawimg_awb, cfa_mode, 'rccc', cfa_clip)
@@ -128,9 +128,9 @@ def isp_pipeline(rawimg,raw_w,raw_h):
     print('Execution time:', final_res, 'milliseconds')   
     print('FPS:', 1000/final_res)
     
-    cv2.imshow('cv', y_img_dwt.get())
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    #cv2.imshow('cv', y_img_dwt.get())
+    #cv2.waitKey(0)
+    #cv2.destroyAllWindows()
     cv2.imwrite('output_dwt.jpg', y_img_dwt.get())
     
     #et = time.time()
@@ -142,7 +142,8 @@ def isp_pipeline(rawimg,raw_w,raw_h):
     yuvimg_out = np.empty((raw_h, raw_w, 3), dtype=np.uint8)
 
     #yuvimg_out[:,:,0] = yuvimg_nlm.get()
-    yuvimg_out[:,:,0] = yuvimg_csc[:,:,0].get()
+    yuvimg_out[:,:,0] = yuvimg_dwt.get()
+    #yuvimg_out[:,:,0] = yuvimg_csc[:,:,0].get()
     yuvimg_out[:,:,1:3] = yuvimg_csc[:,:,1:3].get()
 
     img_bgr = cv2.cvtColor(yuvimg_out, cv2.COLOR_YCrCb2BGR)
