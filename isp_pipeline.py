@@ -73,8 +73,8 @@ def isp_pipeline(rawimg,raw_w,raw_h):
 
    
     # chroma noise filtering
-    cnf = CNF(rawimg_awb, bayer_pattern, 0, parameter, 1023)
-    rawimg_cnf = cnf.execute()
+    #cnf = CNF(rawimg_awb, bayer_pattern, 0, parameter, 1023)
+    #rawimg_cnf = cnf.execute()
     
     # color filter array interpolation
     cfa = CFA(rawimg_awb, cfa_mode, 'rccc', cfa_clip)
