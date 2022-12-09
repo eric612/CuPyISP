@@ -12,6 +12,7 @@ class BLC:
 
     def clipping(self):
         cp.clip(self.img, 0, self.clip, out=self.img)
+        self.img = self.img.astype(cp.uint16)
         return self.img
 
     def execute(self):
@@ -23,7 +24,7 @@ class BLC:
         beta = self.parameter[5]
         raw_h = self.img.shape[0]
         raw_w = self.img.shape[1]
-        blc_img = cp.empty((raw_h,raw_w), cp.uint16)
+        blc_img = cp.empty((raw_h,raw_w), cp.int16)
         if self.bayer_pattern == 'rggb':
             r = self.img[::2, ::2] + bl_r
             b = self.img[1::2, 1::2] + bl_b

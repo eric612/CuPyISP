@@ -26,7 +26,7 @@ class GC:
         #nlm_img = cp.zeros((raw_h, raw_w), cp.int16)
         lut = cp.zeros(4096,cp.uint16)
         bw = 12
-        gamma = 0.5
+        gamma = 0.33
         #mode = 'rgb'
 
         maxval = pow(2,bw)
@@ -37,7 +37,7 @@ class GC:
         self.lut((4096,),(1024,),(lut,gamma,maxval))
         #for i in ind :
         #print(lut)
-        self.cu((img_w//32,img_h//24), (32,24), (self.img,img_w,img_h,lut,8 ,gc_img))  # grid, block and arguments  
+        self.cu((img_w//32,img_h//24), (32,24), (self.img,img_w,img_h,lut,16 ,gc_img))  # grid, block and arguments  
         '''
         for y in range(self.img.shape[0]):
             for x in range(self.img.shape[1]):

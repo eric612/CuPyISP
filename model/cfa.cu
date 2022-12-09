@@ -4,10 +4,10 @@ extern "C" __global__
 void AdamsInterpolation(const short* in, int x, int y, int width, int direction, short* pix_out, short max_cut = 30) {
     if(direction == 0)
         //return BOUND(((in[(y + 1) * width + x] + in[(y - 1) * width + x])*0.5 + (in[y * width + x] * 2 - in[(y + 2) * width + x] - in[(y - 2) * width + x])*0.25),1,255);
-        pix_out[0] = ((in[(y + 1) * width + x] + in[(y - 1) * width + x])*0.5 + BOUND((in[y * width + x] * 2 - in[(y + 2) * width + x] - in[(y - 2) * width + x]),-max_cut, max_cut)/4);
+        pix_out[0] = (in[(y + 1) * width + x] + in[(y - 1) * width + x])*0.5;// + BOUND((in[y * width + x] * 2 - in[(y + 2) * width + x] - in[(y - 2) * width + x])*0.25,1,255);
     else 
         //return BOUND(((in[y * width + x + 1] + in[y * width + x - 1])*0.5 + (in[y * width + x] * 2 - in[y  * width + x + 2] - in[y  * width + x - 2])*0.25), 1, 255);
-        pix_out[0] = ((in[y * width + x + 1] + in[y * width + x - 1])*0.5 + BOUND((in[y * width + x] * 2 - in[y  * width + x + 2] - in[y  * width + x - 2]), -max_cut, max_cut)/4);
+        pix_out[0] = (in[y * width + x + 1] + in[y * width + x - 1])*0.5;// + BOUND((in[y * width + x] * 2 - in[y  * width + x + 2] - in[y  * width + x - 2]*0.25), 1, 255);
 
 }
 extern "C" __global__
@@ -64,19 +64,43 @@ void cfa_kernel(const short* source_image,int is_color, int row, int col,int wid
         g = img[2][3] + img[2][1] + img[1][2] + img[3][2] + img[1][1] + img[1][3] + img[3][1] + img[3][3];
         b = img[2][3] + img[2][1] + img[1][2] + img[3][2] + img[1][1] + img[1][3] + img[3][1] + img[3][3];
         r2 = img[2][2];
-        g2 = g / 8;
-        b2 = b / 8;
+        int h = img[2][2]*2 - img[2][0] - img[2][4];
+        int v = img[2][2]*2 - img[0][2] - img[4][2];
+        if (h>v) {
+            g2 = (g+v) / 8;
+            b2 = (b+v) / 8;
+        }
+        else {
+            g2 = (g+h) / 8;
+            b2 = (b+h) / 8;            
+        }
     }
     else if (is_color == 5) {
         AdamsInterpolation(source_image,col,row,width,1,out);
-        r = out[0];
+        int h = (img[2][2]*2 - img[2][0] - img[2][4])/4;
+        int v = (img[2][2]*2 - img[0][2] - img[4][2])/4;
+        if (h>v) {
+            r = (out[0]+v);
+        }
+        else {
+            r = (out[0]+h);          
+        }        
+        //r = out[0];
         g2 = img[2][2];
         b2 = img[2][2];
         r2 = r;
     }
     else if (is_color == 6) {
         AdamsInterpolation(source_image,col,row,width,0,out);
-        r = out[0];
+        int h = (img[2][2]*2 - img[2][0] - img[2][4])/4;
+        int v = (img[2][2]*2 - img[0][2] - img[4][2])/4;
+        if (h>v) {
+            r = (out[0]+v);
+        }
+        else {
+            r = (out[0]+h);          
+        }
+        //r = out[0];
         g2 = img[2][2];
         b2 = img[2][2];
         r2 = r;
@@ -93,11 +117,11 @@ void cfa_kernel(const short* source_image,int is_color, int row, int col,int wid
         r2 = r/4;
     }    
     r2 = max(r2,0);
-    r2 = min(r2,255*4);
+    r2 = min(r2,4095);
     g2 = max(g2,0);
-    g2 = min(g2,255*4);
+    g2 = min(g2,4095);
     b2 = max(b2,0);
-    b2 = min(b2,255*4);
+    b2 = min(b2,4095);
     pix_out[0] = r2;
     pix_out[1] = g2;
     pix_out[2] = b2;

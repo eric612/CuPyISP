@@ -122,5 +122,8 @@ class CFA:
                         cfa_img[y+1,x,:] = self.malvar('b', b, y+3,x+2, img_pad)
                         cfa_img[y+1,x+1,:] = self.malvar('gb', gb, y+3,x+3, img_pad)
         '''
+        #cfa_img[...,0] = self.img
+        #cfa_img[...,1] = self.img
+        #cfa_img[...,2] = self.img
         self.img = cfa_img
         return self.clipping()

@@ -131,7 +131,7 @@ class CNF:
         elif self.bayer_pattern == 'grbg':
             type = 3
         #print(pad_w,pad_h)
-        cnf((raw_w//56,raw_h//56), (28,28), (img,raw_w,raw_h,pad_w,pad_h,4,4,self.thres,self.gain[0],self.gain[3],type,img_out))  # grid, block and arguments    
+        cnf((raw_w//32,raw_h//28), (16,14), (img,raw_w,raw_h,pad_w,pad_h,4,4,self.thres,self.gain[0],self.gain[3],type,img_out))  # grid, block and arguments    
         #plt.imshow(is_noise_img.get(), cmap='gray')
         #plt.show()
     def cnf(self, is_color, y, x, img):

@@ -4,6 +4,7 @@ import cupy as cp
 import cv2 
 raw_path = 'ov10642_With_Noise.raw'
 #raw_path = 'ov10642_Without_Noise.raw'
+#raw_path = 'DSCF0173_H_MTF.bmp_(1280x960_12)_LIT_ENDIAN_RGGB.raw'
 from model.dpc import DPC
 from model.blc import BLC
 from model.aaf import AAF
@@ -21,35 +22,35 @@ def isp_pipeline(rawimg,raw_w,raw_h):
     dpc_mode = 'gradient'
     dpc_clip = 4095
         
-    bl_r = 0
-    bl_gr = 0
-    bl_gb = 0
-    bl_b = 0
-    alpha = 0
-    beta = 0
+    bl_r = -120
+    bl_gr = -120
+    bl_gb = -120
+    bl_b = -120
+    alpha = 0.0
+    beta = 0.0
     blc_clip = 4095
     bayer_pattern = 'rggb'
     
-    r_gain = 1.0
-    gr_gain = 1.0
-    gb_gain = 1.0
-    b_gain = 1.0
+    r_gain = 2.0
+    gr_gain = 2.0
+    gb_gain = 2.0
+    b_gain = 2.0
     awb_clip = 4095
     cfa_mode = 'malvar'
     cfa_clip = 4095
     csc = cp.zeros((3, 4))
     
-    csc[0][0] = 1024 * float(0.257) 
-    csc[0][1] = 1024 * float(0.504) 
-    csc[0][2] = 1024 * float(0.098) 
-    csc[0][3] = 1024 * float(16) 
-    csc[1][0] = 1024 * float(-0.148) 
-    csc[1][1] = 1024 * float(-0.291) 
-    csc[1][2] = 1024 * float(0.439) 
+    csc[0][0] = 1024 * float(0.299) 
+    csc[0][1] = 1024 * float(0.587) 
+    csc[0][2] = 1024 * float(0.114) 
+    csc[0][3] = 1024 * float(0) 
+    csc[1][0] = 1024 * float(-0.169) 
+    csc[1][1] = 1024 * float(-0.331) 
+    csc[1][2] = 1024 * float(0.5) 
     csc[1][3] = 1024 * float(128) 
-    csc[2][0] = 1024 * float(0.439) 
-    csc[2][1] = 1024 * float(-0.368) 
-    csc[2][2] = 1024 * float(-0.071)
+    csc[2][0] = 1024 * float(0.5) 
+    csc[2][1] = 1024 * float(-0.419) 
+    csc[2][2] = 1024 * float(-0.081)
     csc[2][3] = 1024 * float(128)
     nlm_h = 10
     nlm_clip = 255
@@ -68,7 +69,7 @@ def isp_pipeline(rawimg,raw_w,raw_h):
     
     # white balance gain control
     parameter = [r_gain, gr_gain, gb_gain, b_gain]
-    awb = WBGC(rawimg_aaf, parameter, bayer_pattern, awb_clip)
+    awb = WBGC(rawimg_blc, parameter, bayer_pattern, awb_clip)
     rawimg_awb = awb.execute()
 
    
@@ -77,6 +78,7 @@ def isp_pipeline(rawimg,raw_w,raw_h):
     rawimg_cnf = cnf.execute()
     
     # color filter array interpolation
+    #cfa = CFA(rawimg_awb, cfa_mode, 'bggr', cfa_clip)
     cfa = CFA(rawimg_awb, cfa_mode, 'rccc', cfa_clip)
     rgbimg_cfa = cfa.execute()
 
@@ -117,21 +119,23 @@ def isp_pipeline(rawimg,raw_w,raw_h):
     
     #print(yuvimg_csc[:,:,1])
     
-    dwt = DWT(yuvimg_csc[:,:,0])
+    dwt = DWT(yuvimg_csc)
     #show = yuvimg_csc[:,:,0].astype(cp.uint8)
     yuvimg_dwt = dwt.execute()
-    y_img_dwt = (yuvimg_dwt)
+    #print(yuvimg_dwt.shape)
     
     et = time.time()
     res = et - st
     final_res = res * 1000 
+    
     print('Execution time:', final_res, 'milliseconds')   
     print('FPS:', 1000/final_res)
     
-    #cv2.imshow('cv', y_img_dwt.get())
-    #cv2.waitKey(0)
-    #cv2.destroyAllWindows()
-    cv2.imwrite('output_dwt.jpg', y_img_dwt.get())
+    tmp_img = rgbimg_cfa/1024
+    cv2.imshow('cv', tmp_img.get())
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+    cv2.imwrite('output_tmp.jpg', (tmp_img*255).get())
     
     #et = time.time()
     #res = et - st
@@ -142,11 +146,11 @@ def isp_pipeline(rawimg,raw_w,raw_h):
     yuvimg_out = np.empty((raw_h, raw_w, 3), dtype=np.uint8)
 
     #yuvimg_out[:,:,0] = yuvimg_nlm.get()
-    yuvimg_out[:,:,0] = yuvimg_dwt.get()
+    yuvimg_out[:,:,0] = yuvimg_dwt[:,:,0].get()
     #yuvimg_out[:,:,0] = yuvimg_csc[:,:,0].get()
-    yuvimg_out[:,:,1:3] = yuvimg_csc[:,:,1:3].get()
+    yuvimg_out[:,:,1:3] = yuvimg_dwt[:,:,1:3].get()
 
-    img_bgr = cv2.cvtColor(yuvimg_out, cv2.COLOR_YCrCb2BGR)
+    img_bgr = cv2.cvtColor(yuvimg_csc.get(), cv2.COLOR_YCrCb2BGR)
     return img_bgr
     
 if __name__ == '__main__':
