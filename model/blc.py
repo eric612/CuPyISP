@@ -12,7 +12,7 @@ class BLC:
 
     def clipping(self):
         cp.clip(self.img, 0, self.clip, out=self.img)
-        self.img = self.img.astype(cp.uint16)
+        #self.img = self.img.astype(cp.uint16)
         return self.img
 
     def execute(self):

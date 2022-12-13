@@ -8,8 +8,8 @@ class DWT:
     def __init__(self, img):
         self.img = img
         self.ds = 1    # neighbour window size - 1 /2
-        self.Ds = 4    # search window size - 1 / 2
-        self.h = 10
+        self.Ds = 3    # search window size - 1 / 2
+        self.h = 5
         self.clip = 255
         with open('model/dwt.cu', 'r') as file:
             code = file.read()

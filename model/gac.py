@@ -26,7 +26,7 @@ class GC:
         #nlm_img = cp.zeros((raw_h, raw_w), cp.int16)
         lut = cp.zeros(4096,cp.uint16)
         bw = 12
-        gamma = 0.33
+        gamma = 0.4
         #mode = 'rgb'
 
         maxval = pow(2,bw)

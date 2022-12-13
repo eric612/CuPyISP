@@ -2,8 +2,8 @@
 import numpy as np
 import cupy as cp
 import cv2 
-#raw_path = 'ov10642_With_Noise.raw'
-raw_path = 'ov10642_Without_Noise.raw'
+raw_path = 'ov10642_With_Noise.raw'
+#raw_path = 'ov10642_Without_Noise.raw'
 #raw_path = 'DSCF0173_H_MTF.bmp_(1280x960_12)_LIT_ENDIAN_RGGB.raw'
 from model.dpc import DPC
 from model.blc import BLC
@@ -22,19 +22,19 @@ def isp_pipeline(rawimg,raw_w,raw_h):
     dpc_mode = 'gradient'
     dpc_clip = 4095
         
-    bl_r = -100
-    bl_gr = -100
-    bl_gb = -100
-    bl_b = -100
+    bl_r = -120
+    bl_gr = -120
+    bl_gb = -120
+    bl_b = -120
     alpha = 0.0
     beta = 0.0
     blc_clip = 4095
     bayer_pattern = 'rggb'
     
-    r_gain = 1.0
-    gr_gain = 1.0
-    gb_gain = 1.0
-    b_gain = 1.0
+    r_gain = 2.0
+    gr_gain = 2.0
+    gb_gain = 2.0
+    b_gain = 2.0
     awb_clip = 4095
     cfa_mode = 'malvar'
     cfa_clip = 4095
@@ -62,31 +62,20 @@ def isp_pipeline(rawimg,raw_w,raw_h):
     blc = BLC(rawimg_dpc, parameter, bayer_pattern, blc_clip)
     rawimg_blc = blc.execute()
     #print(rawimg_blc.shape)
-    #tmp_img = rawimg_blc/1024
 
-    #cv2.imshow('cv', tmp_img.get())
-    #cv2.waitKey(0)
-    #cv2.destroyAllWindows()
-    #cv2.imwrite('output_tmp1.jpg', (tmp_img*255).get())
     # anti-aliasing filter
     aaf = AAF(rawimg_blc)
     rawimg_aaf = aaf.execute()
     
-    #tmp_img = rawimg_aaf/1024
-
-    #cv2.imshow('cv', tmp_img.get())
-    #cv2.waitKey(0)
-    #cv2.destroyAllWindows()
-    #cv2.imwrite('output_tmp2.jpg', (tmp_img*255).get())    
     # white balance gain control
     parameter = [r_gain, gr_gain, gb_gain, b_gain]
-    awb = WBGC(rawimg_aaf, parameter, bayer_pattern, awb_clip)
+    awb = WBGC(rawimg_blc, parameter, bayer_pattern, awb_clip)
     rawimg_awb = awb.execute()
 
    
     # chroma noise filtering
-    #cnf = CNF(rawimg_awb, bayer_pattern, 0, parameter, 1023)
-    #rawimg_cnf = cnf.execute()
+    cnf = CNF(rawimg_awb, bayer_pattern, 0, parameter, 1023)
+    rawimg_cnf = cnf.execute()
     
     # color filter array interpolation
     #cfa = CFA(rawimg_awb, cfa_mode, 'bggr', cfa_clip)
@@ -142,14 +131,12 @@ def isp_pipeline(rawimg,raw_w,raw_h):
     print('Execution time:', final_res, 'milliseconds')   
     print('FPS:', 1000/final_res)
     
-
-    
     tmp_img = rgbimg_cfa/1024
-
-    #cv2.imshow('cv', tmp_img.get())
-    #cv2.waitKey(0)
-    #cv2.destroyAllWindows()
-    cv2.imwrite('output_tmp.jpg', (tmp_img*255).get())   
+    cv2.imshow('cv', tmp_img.get())
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+    cv2.imwrite('output_tmp.jpg', (tmp_img*255).get())
+    
     #et = time.time()
     #res = et - st
     #final_res = res * 1000 
