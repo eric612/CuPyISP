@@ -198,9 +198,9 @@ void RCCC_kernel(const short* source_image,int is_color, int row, int col,int wi
     g2 = min(g2,4095);
     b2 = max(b2,0);
     b2 = min(b2,4095);*/
-    pix_out[0] = BOUND(g2-r2*0.5,0,4095);
-    pix_out[1] = g2;
-    pix_out[2] = r2;    
+    pix_out[0] = BOUND(b2-r2*0.5,0,4095);
+    pix_out[1] = BOUND(g2,0,4095);
+    pix_out[2] =BOUND(g2*0.75+r2*0.75,0,4095);    
 }
 extern "C" __global__
 void pre_maps(const short* img,int width, int height,int pad_w,int pad_h,int bayer_pattern,short* img_out) {
