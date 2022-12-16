@@ -16,8 +16,8 @@ def RGB_to_Bayer(path='kodim19.png') :
     img_gpu = cp.asarray(img)
     raw_h = img.shape[0]
     raw_w = img.shape[1]
-    bayer = cp.zeros((raw_h, raw_w), dtype=cp.uint8)
-    convert((raw_w//30,raw_h//24), (15,12),(img_gpu,raw_w,raw_h,0,bayer))
+    bayer = cp.zeros((raw_h, raw_w), dtype=cp.uint16)
+    convert((raw_w//30,raw_h//24), (15,12),(img_gpu,raw_w,raw_h,4,bayer))
     return bayer
     #print(img.dtype)
 

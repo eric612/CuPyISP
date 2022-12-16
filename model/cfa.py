@@ -1,6 +1,7 @@
 #!/usr/bin/python
 import numpy as np
 import cupy as cp
+import cv2 
 class CFA:
     'Color Filter Array Interpolation'
 
@@ -60,9 +61,12 @@ class CFA:
         raw_w = self.img.shape[1]
         #print(self.img.shape)
         cfa_img = cp.empty((raw_h, raw_w, 3), cp.int16)
+        pre_map = cp.empty((raw_h, raw_w), cp.int16)
         with open('model/cfa.cu', 'r') as file:
             code = file.read()
         cfa = cp.RawKernel(code, 'cfa')
+        pre_maps = cp.RawKernel(code, 'pre_maps')
+        
         if self.bayer_pattern == 'rggb':
             type = 0
         elif self.bayer_pattern == 'bggr':
@@ -76,8 +80,22 @@ class CFA:
         #print(type)
         pad_w = img_pad.shape[1] - raw_w
         pad_h = img_pad.shape[0] - raw_h
+        pre_maps((raw_w//32,raw_h//24), (16,12), (img_pad,raw_w,raw_h,pad_w,pad_h,type,pre_map))  # grid, block and arguments  
         
-        cfa((raw_w//32,raw_h//24), (16,12), (img_pad,raw_w,raw_h,pad_w,pad_h,type,cfa_img))  # grid, block and arguments  
+        done = pre_map.get()/4096
+        #cv2.imshow('cv', done)
+        #cv2.waitKey(0)
+        #cv2.destroyAllWindows()       
+        #cv2.imwrite('cfa.jpg', done*256)
+        
+        cfa((raw_w//32,raw_h//24), (16,12), (img_pad,pre_map,raw_w,raw_h,pad_w,pad_h,type,cfa_img))  # grid, block and arguments
+        
+        #done = cfa_img.get()/4096
+        #cv2.imshow('cv', done)
+        #cv2.waitKey(0)
+        #cv2.destroyAllWindows()
+        #cv2.imwrite('cfa.jpg', done*256)
+        
         '''
         for y in range(0, img_pad.shape[0]-4-1, 2):
             for x in range(0, img_pad.shape[1]-4-1, 2):

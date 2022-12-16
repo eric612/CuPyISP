@@ -4,11 +4,12 @@ import cupy as cp
 class GC:
     'Gamma Correction'
 
-    def __init__(self, img, mode,clip=1.0):
+    def __init__(self, img, mode,clip=1.0,gamma=0.5):
         self.img = img
         #self.lut = lut
         self.mode = mode
         self.clip = clip
+        self.gamma = gamma
         with open('model/gac.cu', 'r') as file:
             code = file.read()
             self.cu = cp.RawKernel(code, 'gac')
@@ -26,7 +27,6 @@ class GC:
         #nlm_img = cp.zeros((raw_h, raw_w), cp.int16)
         lut = cp.zeros(4096,cp.uint16)
         bw = 12
-        gamma = 0.4
         #mode = 'rgb'
 
         maxval = pow(2,bw)
@@ -34,7 +34,7 @@ class GC:
         #for i in ind :
         #    lut[i] = round(pow(float(i)/maxval, gamma) * maxval)
             
-        self.lut((4096,),(1024,),(lut,gamma,maxval))
+        self.lut((4096,),(1024,),(lut,self.gamma,maxval))
         #for i in ind :
         #print(lut)
         self.cu((img_w//32,img_h//24), (32,24), (self.img,img_w,img_h,lut,16 ,gc_img))  # grid, block and arguments  

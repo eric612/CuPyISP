@@ -22,9 +22,9 @@ class AAF:
         img_h = img_pad.shape[0]
         img_w = img_pad.shape[1]
         #aaf_img = cp.empty((raw_h, raw_w), cp.uint16)
-        filter = cp.array([[1, 0, 1, 0, 1],
+        filter = cp.array([ [1, 0, 1, 0, 1],
                             [0, 0, 0, 0, 0],
-                            [1, 0, 8, 0, 1],
+                            [1, 0, 4, 0, 1],
                             [0, 0, 0, 0, 0],
                             [1, 0, 1, 0, 1]])/16        
         '''

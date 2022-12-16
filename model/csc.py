@@ -29,6 +29,6 @@ class CSC:
         csc_img[:, :, 1] = self.img[:, :, 0] * self.csc[1, 0] + self.img[:, :, 1] * self.csc[1, 1] + self.img[:, :, 2] * self.csc[1, 2] + self.csc[1, 3]
         csc_img[:, :, 2] = self.img[:, :, 0] * self.csc[2, 0] + self.img[:, :, 1] * self.csc[2, 1] + self.img[:, :, 2] * self.csc[2, 2] + self.csc[2, 3]
         csc_img = csc_img / 1024
-        #self.clipping()
+        self.clipping()
         self.img = csc_img.astype(cp.uint8)
         return self.img
