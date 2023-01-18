@@ -61,6 +61,13 @@ class BLC:
             blc_img[::2, 1::2] = r
             blc_img[1::2, ::2] = b
             blc_img[1::2, 1::2] = gb
+        elif self.bayer_pattern == 'ccrc':
+            r = self.img[1::2, ::2] + bl_r 
+            rc = self.img[1::2, 1::2] + bl_gr
+            cc = self.img[::2, :] + bl_gr 
+            blc_img[1::2, ::2] = r
+            blc_img[1::2, 1::2] = rc
+            blc_img[::2, :] = cc       
         self.img = blc_img
         return self.clipping()
 

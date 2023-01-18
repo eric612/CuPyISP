@@ -5,11 +5,12 @@ import cv2
 class CFA:
     'Color Filter Array Interpolation'
 
-    def __init__(self, img, mode, bayer_pattern, clip):
+    def __init__(self, img, mode, bayer_pattern, clip,maxval):
         self.img = img
         self.mode = mode
         self.bayer_pattern = bayer_pattern
         self.clip = clip
+        self.maxval = int(maxval)
 
     def padding(self):
         img_pad = cp.pad(self.img, ((2, 2), (2, 2)), 'reflect')
@@ -59,14 +60,19 @@ class CFA:
         img_pad = img_pad.astype(cp.int16)
         raw_h = self.img.shape[0]
         raw_w = self.img.shape[1]
+        padimg_h = img_pad.shape[0]
+        padimg_w = img_pad.shape[1]
         #print(self.img.shape)
         cfa_img = cp.empty((raw_h, raw_w, 3), cp.int16)
         pre_map = cp.empty((raw_h, raw_w), cp.int16)
+        pre_map_c = cp.empty((padimg_h, padimg_w), cp.int16)
+        pre_map_cr = cp.empty((raw_h, raw_w), cp.int16)
         with open('model/cfa.cu', 'r') as file:
             code = file.read()
         cfa = cp.RawKernel(code, 'cfa')
         pre_maps = cp.RawKernel(code, 'pre_maps')
-        
+        pre_maps_c = cp.RawKernel(code, 'pre_maps_c')
+        pre_maps_cr = cp.RawKernel(code, 'pre_maps_cr')
         if self.bayer_pattern == 'rggb':
             type = 0
         elif self.bayer_pattern == 'bggr':
@@ -75,20 +81,22 @@ class CFA:
             type = 2
         elif self.bayer_pattern == 'grbg':
             type = 3
-        elif self.bayer_pattern == 'rccc':
+        elif self.bayer_pattern == 'ccrc':
             type = 4
+        maxval = int(self.maxval)
         #print(type)
         pad_w = img_pad.shape[1] - raw_w
         pad_h = img_pad.shape[0] - raw_h
-        pre_maps((raw_w//32,raw_h//24), (16,12), (img_pad,raw_w,raw_h,pad_w,pad_h,type,pre_map))  # grid, block and arguments  
-        
-        done = pre_map.get()/4096
+        #pre_maps((raw_w//32,raw_h//24), (16,12), (img_pad,raw_w,raw_h,pad_w,pad_h,maxval,type,pre_map))  # grid, block and arguments  
+        pre_maps_c((raw_w//32,raw_h//24), (16,12), (img_pad,raw_w,raw_h,pad_w,pad_h,maxval,type,pre_map_c))  # grid, block and arguments  
+        pre_maps_cr((raw_w//32,raw_h//24), (16,12), (img_pad,pre_map_c,raw_w,raw_h,pad_w,pad_h,maxval,type,pre_map_cr))  # grid, block and arguments
+        done = pre_map_cr.get()/4096
         #cv2.imshow('cv', done)
         #cv2.waitKey(0)
         #cv2.destroyAllWindows()       
-        #cv2.imwrite('cfa.jpg', done*256)
+        cv2.imwrite('cfa.jpg', done*256)
         
-        cfa((raw_w//32,raw_h//24), (16,12), (img_pad,pre_map,raw_w,raw_h,pad_w,pad_h,type,cfa_img))  # grid, block and arguments
+        cfa((raw_w//32,raw_h//24), (16,12), (img_pad,pre_map_cr,raw_w,raw_h,pad_w,pad_h,self.maxval,type,cfa_img))  # grid, block and arguments
         
         #done = cfa_img.get()/4096
         #cv2.imshow('cv', done)

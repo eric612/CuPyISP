@@ -59,5 +59,14 @@ class WBGC:
             awb_img[::2, 1::2] = r
             awb_img[1::2, ::2] = b
             awb_img[1::2, 1::2] = gb
+        elif self.bayer_pattern == 'ccrc':
+            r = self.img[1::2, ::2] * r_gain
+            rc = self.img[::2, 1::2] * b_gain
+            c1 = self.img[::2, ::2] * gr_gain
+            c2 = self.img[1::2, 1::2] * gb_gain
+            awb_img[1::2, ::2] = r
+            awb_img[::2, 1::2] = rc
+            awb_img[::2, ::2] = c1
+            awb_img[1::2, 1::2] = c2
         self.img = awb_img
         return self.clipping()

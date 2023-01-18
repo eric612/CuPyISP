@@ -130,6 +130,8 @@ class CNF:
             type = 2
         elif self.bayer_pattern == 'grbg':
             type = 3
+        elif self.bayer_pattern == 'ccrc':
+            type = 2            
         #print(pad_w,pad_h)
         cnf((raw_w//32,raw_h//28), (16,14), (img,raw_w,raw_h,pad_w,pad_h,4,4,self.thres,self.gain[0],self.gain[3],type,img_out))  # grid, block and arguments    
         #plt.imshow(is_noise_img.get(), cmap='gray')

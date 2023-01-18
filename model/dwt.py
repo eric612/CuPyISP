@@ -8,7 +8,7 @@ class DWT:
     def __init__(self, img):
         self.img = img
         self.ds = 1    # neighbour window size - 1 /2
-        self.Ds = 4    # search window size - 1 / 2
+        self.Ds = 5    # search window size - 1 / 2
         self.h = 10
         self.clip = 255
         with open('model/dwt.cu', 'r') as file:
@@ -55,7 +55,7 @@ class DWT:
         dwt_img_L2 = cp.empty((img_h, img_w), cp.int16)
         self.cu_dwt_h((img_w//4,img_h//4), (2,4), (img2_L2,img_w,img_h,dwt_img_L2))  # grid, block and arguments
         self.cu_dwt_v((img_w//4,img_h//4), (4,2), (dwt_img_L2,img_w,img_h,img2_L2))  # grid, block and arguments
-        '''
+        
         img_w = img_w//2
         img_h = img_h//2
         img2_L3 = img2_L2[:img_h,:img_w].copy()
@@ -74,7 +74,7 @@ class DWT:
         img2_L2[:img_h,:img_w] = nlm_img
         img_w = img_w*2
         img_h = img_h*2  
-        '''
+        
         self.cu_idwt_v((img_w//4,img_h//4), (4,2), (img2_L2,img_w,img_h,dwt_img_L2))  # grid, block and arguments
         self.cu_idwt_h((img_w//4,img_h//4), (2,4), (dwt_img_L2,img_w,img_h,img2_L2))  # grid, block and arguments
         

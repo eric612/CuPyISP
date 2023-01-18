@@ -2,7 +2,7 @@
 #define BOUND(a,min_val,max_val)           ( (a < min_val) ? min_val : (a >= max_val) ? (max_val) : a )
 
 extern "C" __global__
-void convert(const unsigned char* img,int width, int height,int bayer_pattern,unsigned char* img_out) {
+void convert(const unsigned char* img,int width, int height,int bayer_pattern,unsigned short* img_out) {
     //convert RGB to Bayer
     int row = (blockIdx.y * blockDim.y + threadIdx.y)*2;
     int col = (blockIdx.x * blockDim.x + threadIdx.x)*2;
@@ -15,6 +15,19 @@ void convert(const unsigned char* img,int width, int height,int bayer_pattern,un
             img_out[offset_bayer+width] = img[offset_rgb+width*3+1];
             img_out[offset_bayer+width+1] = img[offset_rgb+width*3+3+2];
         }
+        else if (bayer_pattern==4) {
+            float lum = (img[offset_rgb+2] + img[offset_rgb+1] + img[offset_rgb])/3;
+            img_out[offset_bayer] = int(lum*16);
+            offset_rgb += 3;
+            lum = (img[offset_rgb+2] + img[offset_rgb+1] + img[offset_rgb])/3;
+            img_out[offset_bayer+1] = int(lum*16);
+            offset_rgb += (width*3 - 3);
+            lum = (img[offset_rgb+2] + img[offset_rgb+1] + img[offset_rgb])/3;
+            img_out[offset_bayer+width] = img[offset_rgb+2]*16;
+            offset_rgb += 3;
+            lum = (img[offset_rgb+2] + img[offset_rgb+1] + img[offset_rgb])/3;
+            img_out[offset_bayer+width+1] = int(lum*16);
+        }
     }    
 }
 
@@ -26,7 +39,7 @@ void convert_C_R(const unsigned char* img,int width, int height,unsigned char* i
     if ((row < height) && (col < width)) {
         int offset_bayer = (row)*width + col;
         int offset_rgb = (row)*width*3 + col*3;
-        int luminance = (img[offset_rgb+2]*0.299 + img[offset_rgb+1]*0.587 + img[offset_rgb]*0.114);
+        int luminance = (img[offset_rgb+2] + img[offset_rgb+1] + img[offset_rgb])/3;
         img_out[offset_bayer] = abs(luminance - img[offset_rgb+2]);
 
     }    

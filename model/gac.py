@@ -4,12 +4,13 @@ import cupy as cp
 class GC:
     'Gamma Correction'
 
-    def __init__(self, img, mode,clip=1.0,gamma=0.5):
+    def __init__(self, img, mode,clip=1.0,gamma=0.5,bandwidth_bit=12):
         self.img = img
         #self.lut = lut
         self.mode = mode
         self.clip = clip
         self.gamma = gamma
+        self.bandwidth_bit = bandwidth_bit
         with open('model/gac.cu', 'r') as file:
             code = file.read()
             self.cu = cp.RawKernel(code, 'gac')
@@ -24,20 +25,21 @@ class GC:
         
         gc_img = cp.empty((img_h, img_w, img_c), cp.uint16)
         #print(self.lut)
-        #nlm_img = cp.zeros((raw_h, raw_w), cp.int16)
-        lut = cp.zeros(4096,cp.uint16)
-        bw = 12
+        #nlm_img = cp.zeros((raw_h, raw_w), cp.int16)       
+        bw = self.bandwidth_bit
         #mode = 'rgb'
 
         maxval = pow(2,bw)
+        lut = cp.zeros(maxval,cp.uint16)
+        divide = pow(2,int((bw-8)))
         #ind = range(0, maxval)
         #for i in ind :
         #    lut[i] = round(pow(float(i)/maxval, gamma) * maxval)
             
-        self.lut((4096,),(1024,),(lut,self.gamma,maxval))
+        self.lut((maxval,1),(64,1),(lut,self.gamma,maxval))
         #for i in ind :
         #print(lut)
-        self.cu((img_w//32,img_h//24), (32,24), (self.img,img_w,img_h,lut,16 ,gc_img))  # grid, block and arguments  
+        self.cu((img_w//32,img_h//24), (32,24), (self.img,img_w,img_h,lut,divide,maxval ,gc_img))  # grid, block and arguments  
         '''
         for y in range(self.img.shape[0]):
             for x in range(self.img.shape[1]):

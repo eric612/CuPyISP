@@ -11,7 +11,7 @@ void AdamsInterpolation(const short* in, int x, int y, int width, int direction,
 
 }
 extern "C" __global__
-void cfa_kernel(const short* source_image,int is_color, int row, int col,int width,short *pix_out) {
+void cfa_kernel(const short* source_image,int is_color, int row, int col,int width,int maxval,short *pix_out) {
     float r,g,b;
     int r2,g2,b2;
     short img[5][5]; //5x5 crop_image
@@ -124,43 +124,50 @@ void cfa_kernel(const short* source_image,int is_color, int row, int col,int wid
         b2 = img[2][2];
         r2 = r/4;
     }    
-    r2 = max(r2,0);
+    /*r2 = max(r2,0);
     r2 = min(r2,4095);
     g2 = max(g2,0);
     g2 = min(g2,4095);
     b2 = max(b2,0);
-    b2 = min(b2,4095);
-    pix_out[0] = r2;
-    pix_out[1] = g2;
-    pix_out[2] = b2;
+    b2 = min(b2,4095);*/
+    pix_out[0] = BOUND(b2,0,maxval);
+    pix_out[1] = BOUND(g2,0,maxval);
+    pix_out[2] = BOUND(r2,0,maxval);
     
 }
+//extern "C" __global__
+//void ColorFactor(int x, int y, double sigmaR,double *out) {
+//    double distance = abs(x - y) / sigmaR;
+//    return exp(-0.5 * pow(distance, 2));
+//}
 extern "C" __global__
-void Calc_CR(const short* img,int is_color, int row, int col,int width,short *pix_out) {
+void Calc_CR(const short* img,int is_color, int row, int col,int width,short *pix_out,short *pix_dir) {
     int lum = 0;
     int red = 0;
     int offset = (row)*width + col ;
     if (is_color == 0) {
         int h = abs(img[offset+1]*2 - img[offset+1+width] - img[offset+1-width])+abs(img[offset-1]*2- img[offset-1-width]- img[offset-1+width])+abs((img[offset+width] - img[offset-width]));
         int v = abs(img[offset+width]*2 - img[offset+width-1] - img[offset+width+1])+abs(img[offset-width]*2 - img[offset-width-1] - img[offset-width+1]) + abs(img[offset+1] - img[offset-1]);
-        int l1 = abs(img[offset+1] - img[offset-width]);
-        int l2 = abs(img[offset+width] - img[offset-1]);
-        int l3 = abs(img[offset+width] - img[offset+1]);
-        int l4 = abs(img[offset-1] - img[offset-width]);
-        int l5 = abs(img[offset+width+1] + img[offset-width-1]);
-        int l6 = abs(img[offset+width-1] + img[offset-width+1]);
+        int l1 = abs(img[offset+1] - img[offset-width])+abs(img[offset+width] - img[offset-1])+abs(img[offset+width+1] + img[offset-width-1]); //right-bottom to left-top
+        int l2 = abs(img[offset+width] - img[offset+1])+abs(img[offset-1] - img[offset-width])+abs(img[offset+width-1] + img[offset-width+1]); //left-bottom to right-top
+        //int l3 = abs(img[offset+width] - img[offset-width])+abs(img[offset+1] - img[offset-1])+abs(img[offset+width+1] - img[offset-width-1])+abs(img[offset+width-1] - img[offset-width+1]); //cross
+        //int l3 = ;
+        //int l4 = ;
+        //int l5 = ;
+        //int l6 = ;
         
         int gradient[10],interp[10];
         gradient[0] = h;
         gradient[1] = v;
-        gradient[2] = l1+l2+l5;
-        gradient[3] = l3+l4+l6;
-        
+        gradient[2] = l1;
+        gradient[3] = l2;
+        //gradient[4] = l3;
         
         interp[0] = (img[offset+width] + img[offset-width])/2;
         interp[1] = (img[offset+1] + img[offset-1])/2;
         interp[2] = (img[offset+width+1] + img[offset-width-1])/2;
         interp[3] = (img[offset+width-1] + img[offset-width+1])/2;
+        interp[4] = (img[offset+width] + img[offset-width] + img[offset+1] + img[offset-1])/4;
         
 
         int minima = 65536;
@@ -172,7 +179,7 @@ void Calc_CR(const short* img,int is_color, int row, int col,int width,short *pi
             }
         }
         lum = interp[index];
-        int avg = (interp[0]+interp[1])/2;
+        int avg = (interp[0]+interp[1]+interp[2]+interp[3])/4;
         int laplacian = abs(avg - img[offset+width]) + abs(avg - img[offset-width]) + abs(avg - img[offset+1]) + abs(avg - img[offset-1]);
         if(laplacian<=minima) {
             //lum = avg;
@@ -194,37 +201,251 @@ void Calc_CR(const short* img,int is_color, int row, int col,int width,short *pi
         //lum = lum = (img[offset+width] + img[offset-width])/2;
         //lum = (img[offset+width] + img[offset-width])/2;
         red = img[offset];
+        pix_dir[0] = index;
     }
     else if (is_color == 1) {
         lum = img[offset];
         //lum = (img[offset]*8 + img[offset-width]*2 + img[offset+width]*2 + img[offset-width-1] + img[offset-width+1] + img[offset+width-1] + img[offset+width+1])/16;
         red = (img[offset-1] + img[offset+1])/2;
+        
+        int v = abs(img[offset+width]*2 - img[offset+width-1] - img[offset+width+1])+abs(img[offset-width]*2
+                - img[offset-width-1] - img[offset-width+1]) + abs(img[offset+1] - img[offset-1]); 
+        int h = abs(img[offset+1+width] - img[offset+1-width])+abs(img[offset-1+width]- img[offset-1-width])+abs(img[offset]*2 - img[offset+width] - img[offset-width]);
+        
+        int gradient[10],interp[10];
+        gradient[0] = h;
+        gradient[1] = v;
+        
+        interp[0] = (img[offset+1] + img[offset-1])/2;
+        interp[1] = (img[offset+1] + img[offset-1])/2;
+        //interp[0] = interp[0] + (interp[0] - img[offset+1])/2 + (interp[0] - img[offset-1])/2;
+        int minima = 65536;
+        int index = 0;
+        for (int i =0;i<2;i++) {
+            if(gradient[i]<minima) {
+                minima = gradient[i];
+                index = i;
+            }
+        }
+        //red = interp[index];
+        pix_dir[0] = index;
     }
     else if (is_color == 2) {
         lum = img[offset];
         //lum = (img[offset]*8 + img[offset-1]*2 + img[offset+1]*2 + img[offset-width-1] + img[offset-width+1] + img[offset+width-1] + img[offset+width+1])/16;
         red = (img[offset-width] + img[offset+width])/2;
+        
+        int h = abs(img[offset+1]*2 - img[offset+1+width] - img[offset+1-width])+abs(img[offset-1]*2- img[offset-1-width]- img[offset-1+width])+abs(img[offset+width] - img[offset-width]);
+        int v = abs(img[offset+width+1] - img[offset+width-1])+abs(img[offset-width+1] - img[offset-width-1]) + abs(img[offset]*2 - img[offset+1] - img[offset-1]);
+        
+        int gradient[10],interp[10];
+        gradient[0] = h;
+        gradient[1] = v;
+        
+        interp[0] = (img[offset+width] + img[offset-width])/2;
+        interp[1] = (img[offset+width] + img[offset-width])/2+ (img[offset]*2 - img[offset+width] - img[offset-width])/4;
+        //interp[1] = interp[1] + (interp[1] - img[offset+width])/2 + (interp[1] - img[offset-width])/2;
+        int minima = 65536;
+        int index = 0;
+        for (int i =0;i<2;i++) {
+            if(gradient[i]<minima) {
+                minima = gradient[i];
+                index = i;
+            }
+        }
+        red = interp[index]; 
+        pix_dir[0] = index;
     }
     else if (is_color == 3) {
         lum = img[offset];
         //lum = (img[offset]*4 + img[offset-width] + img[offset+width] + img[offset-1] + img[offset+1])/8;
         red = (img[offset-width-1] + img[offset-width+1] + img[offset+width-1] + img[offset+width+1])/4;
-        /*
-        int h = abs(img[offset]*2 - img[offset-width] - img[offset+width]);
-        int v = abs(img[offset]*2 - img[offset-1] - img[offset+1]);
-        if (h>v) {
-            //red = (img[offset+width-1] + img[offset+width+1])/2;
-        }
-        else {
-            
-            //red = (img[offset-width+1] + img[offset+width+1])/2;
-        }*/        
         
+        int h = abs(img[offset+1+width] - img[offset+1-width])+abs(img[offset-1+width]- img[offset-1-width])+abs(img[offset]*2 - img[offset+width] - img[offset-width]);
+        int v = abs(img[offset+width+1] - img[offset+width-1])+abs(img[offset-width+1] - img[offset-width-1]) + abs(img[offset]*2 - img[offset+1] - img[offset-1]);
+       
+        int gradient[10],interp[10];
+        gradient[0] = h;
+        gradient[1] = v;
+
+        interp[0] = red+(img[offset]*2 - img[offset+width] - img[offset-width])/4;
+        interp[1] = red+(img[offset]*2 - img[offset+1] - img[offset-1])/4;       
+
+        int minima = 65536;
+        int index = 0;
+        for (int i =0;i<4;i++) {
+            if(gradient[i]<minima) {
+                minima = gradient[i];
+                index = i;
+            }
+        }      
+        //red = interp[index];
+        pix_dir[0] = index;
     }
-    pix_out[0] = lum - red;
+    pix_out[0] = (red);
+}
+//extern "C" __global__
+//void ColorFactor(int x, int y, double sigmaR,double *out) {
+//    double distance = abs(x - y) / sigmaR;
+//    return exp(-0.5 * pow(distance, 2));
+//}
+extern "C" __global__
+void Calc_C(const short* img,int is_color, int row, int col,int width,short *pix_out) {
+    int lum = 0;
+    int red = 0;
+    int offset = (row)*width + col ;
+    if (is_color == 0) {
+        int h = abs(img[offset+1]*2 - img[offset+1+width] - img[offset+1-width])+abs(img[offset-1]*2- img[offset-1-width]- img[offset-1+width])+abs((img[offset+width] - img[offset-width]));
+        int v = abs(img[offset+width]*2 - img[offset+width-1] - img[offset+width+1])+abs(img[offset-width]*2 - img[offset-width-1] - img[offset-width+1]) + abs(img[offset+1] - img[offset-1]);
+        int l1 = abs(img[offset+1] - img[offset-width])+abs(img[offset+width] - img[offset-1])+abs(img[offset+width+1] + img[offset-width-1]); //right-bottom to left-top
+        int l2 = abs(img[offset+width] - img[offset+1])+abs(img[offset-1] - img[offset-width])+abs(img[offset+width-1] + img[offset-width+1]); //left-bottom to right-top
+
+        
+        int gradient[10],interp[10];
+        gradient[0] = h;
+        gradient[1] = v;
+        gradient[2] = l1;
+        gradient[3] = l2;
+        //gradient[4] = l3;
+        
+        interp[0] = (img[offset+width] + img[offset-width])/2;
+        interp[1] = (img[offset+1] + img[offset-1])/2;
+        interp[2] = (img[offset+width+1] + img[offset-width-1])/2;
+        interp[3] = (img[offset+width-1] + img[offset-width+1])/2;
+        interp[4] = (img[offset+width] + img[offset-width] + img[offset+1] + img[offset-1])/4;
+        
+
+        int minima = 65536;
+        int index = 0;
+        for (int i =0;i<4;i++) {
+            if(gradient[i]<minima) {
+                minima = gradient[i];
+                index = i;
+            }
+        }
+        lum = interp[index];
+        int avg = (interp[0]+interp[1]+interp[2]+interp[3])/4;
+        int laplacian = abs(avg - img[offset+width]) + abs(avg - img[offset-width]) + abs(avg - img[offset+1]) + abs(avg - img[offset-1]);
+        if(laplacian<=minima) {
+            //lum = avg;
+        }
+    }
+    else if (is_color == 1) {
+        lum = img[offset];
+    }
+    else if (is_color == 2) {
+        lum = img[offset];
+    }
+    else if (is_color == 3) {
+        lum = img[offset];
+
+    }
+    pix_out[0] = (lum);
 }
 extern "C" __global__
-void RCCC_kernel(const short* source_image,const short* pre_maps,int is_color, int row, int col,int width,int map_width,short *pix_out) {
+void Calc_R(const short* img,const short* c_img,int is_color, int row, int col,int width,short *pix_out) {
+    int lum = 0;
+    int red = 0;
+    int offset = (row)*width + col ;
+    if (is_color == 0) {
+        lum = c_img[offset];
+        red = img[offset];
+    }
+    else if (is_color == 1) {
+        lum = c_img[offset];
+        //lum = (img[offset]*8 + img[offset-width]*2 + img[offset+width]*2 + img[offset-width-1] + img[offset-width+1] + img[offset+width-1] + img[offset+width+1])/16;
+        red = (img[offset-1] + img[offset+1])/2;
+        
+        int v = abs(img[offset+width]*2 - img[offset+width-1] - img[offset+width+1])+abs(img[offset-width]*2
+                - img[offset-width-1] - img[offset-width+1]) + abs(img[offset+1] - img[offset-1]); 
+        int h = abs(img[offset+1+width] - img[offset+1-width])+abs(img[offset-1+width]- img[offset-1-width])+abs(img[offset]*2 - img[offset+width] - img[offset-width]);
+        int l1 = abs(img[offset]*2 - img[offset+width+1] - img[offset-width-1]); //right-bottom to left-top
+        int l2 = abs(img[offset]*2 - img[offset+width-1] - img[offset-width+1]); //left-bottom to right-top        
+        int gradient[10],interp[10];
+        gradient[0] = h;
+        gradient[1] = v;
+        gradient[2] = l1+l2;
+
+        interp[0] = (img[offset+1] + img[offset-1])/2+(c_img[offset]*2-c_img[offset+1]-c_img[offset-1])/2;
+        interp[1] = (img[offset+1] + img[offset-1])/2;
+        interp[2] = (img[offset+1] + img[offset-1])/2+(c_img[offset]*4-c_img[offset+1]-c_img[offset-1]-img[offset-width]-img[offset+width])/4;   
+        //interp[0] = (img[offset+1] + img[offset-1])/2;
+        //interp[1] = (img[offset+1] + img[offset-1])/2;
+        //interp[0] = interp[0] + (interp[0] - img[offset+1])/2 + (interp[0] - img[offset-1])/2;
+        int minima = 65536;
+        int index = 0;
+        for (int i =0;i<3;i++) {
+            if(gradient[i]<minima) {
+                minima = gradient[i];
+                index = i;
+            }
+        }
+        red = interp[index];
+    }
+    else if (is_color == 2) {
+        lum = c_img[offset];
+        //lum = (img[offset]*8 + img[offset-1]*2 + img[offset+1]*2 + img[offset-width-1] + img[offset-width+1] + img[offset+width-1] + img[offset+width+1])/16;
+        red = (img[offset-width] + img[offset+width])/2;
+        
+        int h = abs(img[offset+1]*2 - img[offset+1+width] - img[offset+1-width])+abs(img[offset-1]*2- img[offset-1-width]- img[offset-1+width])+abs(img[offset+width] - img[offset-width]);
+        int v = abs(img[offset+width+1] - img[offset+width-1])+abs(img[offset-width+1] - img[offset-width-1]) + abs(img[offset]*2 - img[offset+1] - img[offset-1]);
+        int l1 = abs(img[offset]*2 - img[offset+width+1] - img[offset-width-1]); //right-bottom to left-top
+        int l2 = abs(img[offset]*2 - img[offset+width-1] - img[offset-width+1]); //left-bottom to right-top           
+        int gradient[10],interp[10];
+        gradient[0] = h;
+        gradient[1] = v;
+        gradient[2] = l1+l2;
+        interp[0] = (img[offset+width] + img[offset-width])/2;
+        interp[1] = (img[offset+width] + img[offset-width])/2+ (c_img[offset]*2 - c_img[offset+width] - c_img[offset-width])/2;
+        interp[2] = (img[offset+width] + img[offset-width])/2+(c_img[offset]*4-c_img[offset+1]-c_img[offset-1]-img[offset-width]-img[offset+width])/4; ;        
+        //interp[0] = (img[offset+width] + img[offset-width])/2;
+        //interp[1] = (img[offset+width] + img[offset-width])/2;
+        //interp[1] = interp[1] + (interp[1] - img[offset+width])/2 + (interp[1] - img[offset-width])/2;
+        int minima = 65536;
+        int index = 0;
+        for (int i =0;i<3;i++) {
+            if(gradient[i]<minima) {
+                minima = gradient[i];
+                index = i;
+            }
+        }
+        red = interp[index]; 
+    }
+    else if (is_color == 3) {
+        lum = c_img[offset];
+        //lum = (img[offset]*4 + img[offset-width] + img[offset+width] + img[offset-1] + img[offset+1])/8;
+        red = (img[offset-width-1] + img[offset-width+1] + img[offset+width-1] + img[offset+width+1])/4;
+        
+        int h = abs(img[offset+1+width] - img[offset+1-width])+abs(img[offset-1+width]- img[offset-1-width])+abs(img[offset]*2 - img[offset+width] - img[offset-width]);
+        int v = abs(img[offset+width+1] - img[offset+width-1])+abs(img[offset-width+1] - img[offset-width-1]) + abs(img[offset]*2 - img[offset+1] - img[offset-1]);
+        int l1 = abs(img[offset+1] - img[offset-width])+abs(img[offset+width] - img[offset-1]) + abs(img[offset+width+1] - img[offset-width-1]); //right-bottom to left-top
+        int l2 = abs(img[offset+width] - img[offset+1])+abs(img[offset-1] - img[offset-width]) + abs(img[offset+width-1] - img[offset-width+1]); //left-bottom to right-top         
+        int gradient[10],interp[10];
+        gradient[0] = h;
+        gradient[1] = v;
+        gradient[2] = l1;
+        gradient[3] = l2;
+        
+        interp[0] = red+(c_img[offset]*2 - c_img[offset+1] - c_img[offset-1])/2;
+        interp[1] = red+(c_img[offset]*2 - c_img[offset+width] - c_img[offset-width])/2; 
+        interp[2] = (img[offset-width-1] + img[offset+width+1])/2;
+        interp[3] = (img[offset-width+1] + img[offset+width-1])/2;     
+        //interp[0] = red;
+        //interp[1] = red;  
+        int minima = 65536;
+        int index = 0;
+        for (int i =0;i<4;i++) {
+            if(gradient[i]<minima) {
+                minima = gradient[i];
+                index = i;
+            }
+        }      
+        red = interp[index];
+    }
+    pix_out[0] = (lum - red);
+}
+extern "C" __global__
+void RCCC_kernel(const short* source_image,const short* pre_maps,int is_color, int row, int col,int width,int map_width,int maxval,short *pix_out) {
     float r,g,b;
     int r2,g2,b2;
     short img[5][5]; //5x5 crop_image
@@ -242,18 +463,18 @@ void RCCC_kernel(const short* source_image,const short* pre_maps,int is_color, i
     int CR = 0; // lum - R
     int red = 0;
     int offset_map = (row-2)*map_width + col-2 ;
-    int th = 512;
+    int th = 4096;
     if (is_color == 0) {         
         red = img[2][2];
         CR = pre_maps[offset_map];
         r2 = red;
-        g2 = BOUND(CR+red,0,4095);
-        b2 = BOUND(CR+red,0,4095);
+        g2 = BOUND(CR+red,0,maxval);
+        b2 = BOUND(CR+red,0,maxval);
     }
     else if (is_color == 1) {
         lum = img[2][2];
         int minimum = 9999;
-        int red = (img[2][1]*2 + img[2][3]*2 + img[0][1] + img[4][1] + img[0][3] + img[4][3])/8;
+        int red = (img[2][1] + img[2][3])/2;
         int tmp = lum - red;     
         int count = 0;
         int sum = 0;
@@ -273,14 +494,14 @@ void RCCC_kernel(const short* source_image,const short* pre_maps,int is_color, i
             tmp = sum/count;
         }
         //red = (img[2][1]*2 + img[2][3]*2 + img[0][1] + img[4][1] + img[0][3] + img[4][3])/8;                  
-        r2 = BOUND(lum - tmp,0,4095);
-        g2 = BOUND(lum,0,4095);
-        b2 = BOUND(lum,0,4095);        
+        r2 = BOUND(lum - tmp,0,maxval);
+        g2 = BOUND(lum,0,maxval);
+        b2 = BOUND(lum,0,maxval);        
     }
     else if (is_color == 2) {
         lum = img[2][2];
         int minimum = 9999;
-        int red = (img[1][2]*2 + img[3][2]*2 + img[1][0] + img[1][4] + img[3][0] + img[3][4])/8; 
+        int red = (img[1][2] + img[3][2])/2; 
         int tmp = lum - red;   
         int count = 0;
         int sum = 0;        
@@ -300,9 +521,9 @@ void RCCC_kernel(const short* source_image,const short* pre_maps,int is_color, i
             tmp = sum/count;
         }
         //red = (img[1][2]*2 + img[3][2]*2 + img[1][0] + img[1][4] + img[3][0] + img[3][4])/8;
-        r2 = BOUND(lum - tmp,0,4095);
-        g2 = BOUND(lum,0,4095);
-        b2 = BOUND(lum,0,4095);  
+        r2 = BOUND(lum - tmp,0,maxval);
+        g2 = BOUND(lum,0,maxval);
+        b2 = BOUND(lum,0,maxval);  
     }
     else if (is_color == 3) {
         lum = img[2][2];
@@ -327,9 +548,9 @@ void RCCC_kernel(const short* source_image,const short* pre_maps,int is_color, i
             tmp = sum/count;
         }        
         //red = (img[1][1] + img[1][3] + img[3][1] + img[3][3])/4;        
-        r2 = BOUND(lum - tmp,0,4095);
-        g2 = BOUND(lum,0,4095);
-        b2 = BOUND(lum,0,4095);
+        r2 = BOUND(lum - tmp,0,maxval);
+        g2 = BOUND(lum,0,maxval);
+        b2 = BOUND(lum,0,maxval);
     }
     /*
     r2 = max(r2,0);
@@ -340,12 +561,13 @@ void RCCC_kernel(const short* source_image,const short* pre_maps,int is_color, i
     b2 = min(b2,4095);*/
     //b2 = (0.413*g2-0.299*r2)/0.114;
     //g2 = (g2 - 0.299*r2 - 0.114*b2)/0.587;
-    pix_out[0] = BOUND(b2,0,4095);
-    pix_out[1] = BOUND(g2,0,4095);
-    pix_out[2] = BOUND(r2,0,4095);
+    //b2 = (b2-r2*0.25);
+    pix_out[0] = BOUND(b2,0,maxval);
+    pix_out[1] = BOUND(g2,0,maxval);
+    pix_out[2] = BOUND(r2,0,maxval);
 }
 extern "C" __global__
-void pre_maps(const short* img,int width, int height,int pad_w,int pad_h,int bayer_pattern,short* img_out) {
+void pre_maps(const short* img,int width, int height,int pad_w,int pad_h,int maxval,int bayer_pattern,short* img_out) {
     int row = (blockIdx.y * blockDim.y + threadIdx.y)*2;
     int col = (blockIdx.x * blockDim.x + threadIdx.x)*2;
     int i_width = width + pad_w;
@@ -356,28 +578,90 @@ void pre_maps(const short* img,int width, int height,int pad_w,int pad_h,int bay
 
         int offset = (row+2)*i_width + col + 2;
         int shift_offset = (row)*width + col ;
-        short pix_out[3];
+        short pix_out[3],pix_dir[3];
         if (bayer_pattern==4 ) {
-            Calc_CR(img,2,row+2,col+2,i_width,pix_out);            
+            Calc_CR(img,2,row+2,col+2,i_width,pix_out,pix_dir);            
             img_out[shift_offset] = (pix_out[0]);
             
-            Calc_CR(img,3,row+2,col+3,i_width,pix_out);
+            Calc_CR(img,3,row+2,col+3,i_width,pix_out,pix_dir);
             shift_offset +=1 ;
             img_out[shift_offset] = (pix_out[0]);
             
-            Calc_CR(img,0,row+3,col+2,i_width,pix_out);
+            Calc_CR(img,0,row+3,col+2,i_width,pix_out,pix_dir);
             shift_offset += (width-1);
             img_out[shift_offset] = (pix_out[0]);
             
-            Calc_CR(img,1,row+3,col+3,i_width,pix_out);
+            Calc_CR(img,1,row+3,col+3,i_width,pix_out,pix_dir);
             shift_offset +=1 ;
             img_out[shift_offset] = (pix_out[0]);              
         }
     }        
 }
 extern "C" __global__
-void cfa(const short* img,const short* pre_maps,int width, int height,int pad_w,int pad_h,int bayer_pattern,short* img_out) {
+void pre_maps_c(const short* img,int width, int height,int pad_w,int pad_h,int maxval,int bayer_pattern,short* img_out) {
+    int row = (blockIdx.y * blockDim.y + threadIdx.y)*2;
+    int col = (blockIdx.x * blockDim.x + threadIdx.x)*2;
+    int i_width = width + pad_w;
+    int i_height = height + pad_h;
+    int pad_w2 = pad_w/2;
+    int pad_h2 = pad_h/2;
+    if ((row < i_height) && (col < i_width) && row>=0 && col>=0) {
 
+        int offset = (row+2)*i_width + col + 2;
+        int shift_offset = (row)*width + col ;
+        short pix_out[3],pix_dir[3];
+        if (bayer_pattern==4 ) {
+            Calc_C(img,2,row+2,col+2,i_width,pix_out);            
+            img_out[offset] = (pix_out[0]);
+            
+            Calc_C(img,3,row+2,col+3,i_width,pix_out);
+            offset +=1 ;
+            img_out[offset] = (pix_out[0]);
+            
+            Calc_C(img,0,row+3,col+2,i_width,pix_out);
+            offset += (i_width-1);
+            img_out[offset] = (pix_out[0]);
+            
+            Calc_C(img,1,row+3,col+3,i_width,pix_out);
+            offset +=1 ;
+            img_out[offset] = (pix_out[0]);              
+        }
+    }        
+}
+extern "C" __global__
+void pre_maps_cr(const short* img,const short* c_img,int width, int height,int pad_w,int pad_h,int maxval,int bayer_pattern,short* img_out) {
+    int row = (blockIdx.y * blockDim.y + threadIdx.y)*2;
+    int col = (blockIdx.x * blockDim.x + threadIdx.x)*2;
+    int i_width = width + pad_w;
+    int i_height = height + pad_h;
+    int pad_w2 = pad_w/2;
+    int pad_h2 = pad_h/2;
+    if ((row < i_height) && (col < i_width) && row>=0 && col>=0) {
+
+        int offset = (row+2)*i_width + col + 2;
+        int shift_offset = (row)*width + col ;
+        short pix_out[3],pix_dir[3];
+        if (bayer_pattern==4 ) {
+            Calc_R(img,c_img,2,row+2,col+2,i_width,pix_out);            
+            img_out[shift_offset] = (pix_out[0]);
+            
+            Calc_R(img,c_img,3,row+2,col+3,i_width,pix_out);
+            shift_offset +=1 ;
+            img_out[shift_offset] = (pix_out[0]);
+            
+            Calc_R(img,c_img,0,row+3,col+2,i_width,pix_out);
+            shift_offset += (width-1);
+            img_out[shift_offset] = (pix_out[0]);
+            
+            Calc_R(img,c_img,1,row+3,col+3,i_width,pix_out);
+            shift_offset +=1 ;
+            img_out[shift_offset] = (pix_out[0]);              
+        }
+    }        
+}
+extern "C" __global__
+void cfa(const short* img,const short* pre_maps,int width, int height,int pad_w,int pad_h,int maxval,int bayer_pattern,short* img_out) {
+	
     int row = (blockIdx.y * blockDim.y + threadIdx.y)*2;
     int col = (blockIdx.x * blockDim.x + threadIdx.x)*2;
     int i_width = width + pad_w;
@@ -391,24 +675,24 @@ void cfa(const short* img,const short* pre_maps,int width, int height,int pad_w,
         short pix_out[3];
         if (bayer_pattern==0 ) {
                       
-            cfa_kernel(img,0,row+2,col+2,i_width,pix_out);            
+            cfa_kernel(img,0,row+2,col+2,i_width,maxval,pix_out);            
             img_out[shift_offset] = pix_out[0];
             img_out[shift_offset+1] = pix_out[1];
             img_out[shift_offset+2] = pix_out[2];
             
-            cfa_kernel(img,1,row+2,col+3,i_width,pix_out);
+            cfa_kernel(img,1,row+2,col+3,i_width,maxval,pix_out);
             shift_offset +=3 ;
             img_out[shift_offset] = pix_out[0];
             img_out[shift_offset+1] = pix_out[1];
             img_out[shift_offset+2] = pix_out[2];  
             
-            cfa_kernel(img,2,row+3,col+2,i_width,pix_out);
+            cfa_kernel(img,2,row+3,col+2,i_width,maxval,pix_out);
             shift_offset += (width*3-3);
             img_out[shift_offset] = pix_out[0];
             img_out[shift_offset+1] = pix_out[1];
             img_out[shift_offset+2] = pix_out[2];
             
-            cfa_kernel(img,3,row+3,col+3,i_width,pix_out);
+            cfa_kernel(img,3,row+3,col+3,i_width,maxval,pix_out);
             shift_offset +=3 ;
             img_out[shift_offset] = pix_out[0];
             img_out[shift_offset+1] = pix_out[1];
@@ -417,24 +701,24 @@ void cfa(const short* img,const short* pre_maps,int width, int height,int pad_w,
         }
         else if (bayer_pattern==1 ) {           
 
-            cfa_kernel(img,3,row+2,col+2,i_width,pix_out);            
+            cfa_kernel(img,3,row+2,col+2,i_width,maxval,pix_out);            
             img_out[shift_offset] = pix_out[0];
             img_out[shift_offset+1] = pix_out[1];
             img_out[shift_offset+2] = pix_out[2];
             
-            cfa_kernel(img,2,row+2,col+3,i_width,pix_out);
+            cfa_kernel(img,2,row+2,col+3,i_width,maxval,pix_out);
             shift_offset +=3 ;
             img_out[shift_offset] = pix_out[0];
             img_out[shift_offset+1] = pix_out[1];
             img_out[shift_offset+2] = pix_out[2];  
             
-            cfa_kernel(img,1,row+3,col+2,i_width,pix_out);
+            cfa_kernel(img,1,row+3,col+2,i_width,maxval,pix_out);
             shift_offset += (width*3-3);
             img_out[shift_offset] = pix_out[0];
             img_out[shift_offset+1] = pix_out[1];
             img_out[shift_offset+2] = pix_out[2];
             
-            cfa_kernel(img,0,row+3,col+3,i_width,pix_out);
+            cfa_kernel(img,0,row+3,col+3,i_width,maxval,pix_out);
             shift_offset +=3 ;
             img_out[shift_offset] = pix_out[0];
             img_out[shift_offset+1] = pix_out[1];
@@ -442,24 +726,24 @@ void cfa(const short* img,const short* pre_maps,int width, int height,int pad_w,
         }
         else if (bayer_pattern==2 ) {          
 
-            cfa_kernel(img,2,row+2,col+2,i_width,pix_out);            
+            cfa_kernel(img,2,row+2,col+2,i_width,maxval,pix_out);            
             img_out[shift_offset] = pix_out[0];
             img_out[shift_offset+1] = pix_out[1];
             img_out[shift_offset+2] = pix_out[2];
             
-            cfa_kernel(img,3,row+2,col+3,i_width,pix_out);
+            cfa_kernel(img,3,row+2,col+3,i_width,maxval,pix_out);
             shift_offset +=3 ;
             img_out[shift_offset] = pix_out[0];
             img_out[shift_offset+1] = pix_out[1];
             img_out[shift_offset+2] = pix_out[2];  
             
-            cfa_kernel(img,0,row+3,col+2,i_width,pix_out);
+            cfa_kernel(img,0,row+3,col+2,i_width,maxval,pix_out);
             shift_offset += (width*3-3);
             img_out[shift_offset] = pix_out[0];
             img_out[shift_offset+1] = pix_out[1];
             img_out[shift_offset+2] = pix_out[2];
             
-            cfa_kernel(img,1,row+3,col+3,i_width,pix_out);
+            cfa_kernel(img,1,row+3,col+3,i_width,maxval,pix_out);
             shift_offset +=3 ;
             img_out[shift_offset] = pix_out[0];
             img_out[shift_offset+1] = pix_out[1];
@@ -467,77 +751,82 @@ void cfa(const short* img,const short* pre_maps,int width, int height,int pad_w,
         }
         else if (bayer_pattern==3 ) {          
 
-            cfa_kernel(img,1,row+2,col+2,i_width,pix_out);            
+            cfa_kernel(img,1,row+2,col+2,i_width,maxval,pix_out);            
             img_out[shift_offset] = pix_out[0];
             img_out[shift_offset+1] = pix_out[1];
             img_out[shift_offset+2] = pix_out[2];
             
-            cfa_kernel(img,0,row+2,col+3,i_width,pix_out);
+            cfa_kernel(img,0,row+2,col+3,i_width,maxval,pix_out);
             shift_offset +=3 ;
             img_out[shift_offset] = pix_out[0];
             img_out[shift_offset+1] = pix_out[1];
             img_out[shift_offset+2] = pix_out[2];  
             
-            cfa_kernel(img,3,row+3,col+2,i_width,pix_out);
+            cfa_kernel(img,3,row+3,col+2,i_width,maxval,pix_out);
             shift_offset += (width*3-3);
             img_out[shift_offset] = pix_out[0];
             img_out[shift_offset+1] = pix_out[1];
             img_out[shift_offset+2] = pix_out[2];
             
-            cfa_kernel(img,2,row+3,col+3,i_width,pix_out);
+            cfa_kernel(img,2,row+3,col+3,i_width,maxval,pix_out);
             shift_offset +=3 ;
             img_out[shift_offset] = pix_out[0];
             img_out[shift_offset+1] = pix_out[1];
             img_out[shift_offset+2] = pix_out[2];             
         }        
         else if (bayer_pattern==4 ) {    
-            RCCC_kernel(img,pre_maps,2,row+2,col+2,i_width,width,pix_out);            
+            RCCC_kernel(img,pre_maps,2,row+2,col+2,i_width,width,maxval,pix_out);            
             img_out[shift_offset] = pix_out[0];
             img_out[shift_offset+1] = pix_out[1];
             img_out[shift_offset+2] = pix_out[2];
             
-            RCCC_kernel(img,pre_maps,3,row+2,col+3,i_width,width,pix_out);
+            RCCC_kernel(img,pre_maps,3,row+2,col+3,i_width,width,maxval,pix_out);
             shift_offset +=3 ;
             img_out[shift_offset] = pix_out[0];
             img_out[shift_offset+1] = pix_out[1];
             img_out[shift_offset+2] = pix_out[2];  
             
-            RCCC_kernel(img,pre_maps,0,row+3,col+2,i_width,width,pix_out);
+            RCCC_kernel(img,pre_maps,0,row+3,col+2,i_width,width,maxval,pix_out);
             shift_offset += (width*3-3);
             img_out[shift_offset] = pix_out[0];
             img_out[shift_offset+1] = pix_out[1];
             img_out[shift_offset+2] = pix_out[2];
             
-            RCCC_kernel(img,pre_maps,1,row+3,col+3,i_width,width,pix_out);
+            RCCC_kernel(img,pre_maps,1,row+3,col+3,i_width,width,maxval,pix_out);
             shift_offset +=3 ;
             img_out[shift_offset] = pix_out[0];
             img_out[shift_offset+1] = pix_out[1];
             img_out[shift_offset+2] = pix_out[2];          
-            /*
-            //cfa_kernel(img,0,row+2,col+2,i_width,pix_out);   
-            //int pix = (img[offset]+img[offset+1]+img[offset+i_width]+img[offset+i_width+1])/4;
-            img_out[shift_offset] = img[offset];
-            img_out[shift_offset+1] = img[offset];
-            img_out[shift_offset+2] = img[offset];
-            
-            //cfa_kernel(img,1,row+2,col+3,i_width,pix_out);
-            shift_offset +=3 ;
-            img_out[shift_offset] = img[offset+1];
-            img_out[shift_offset+1] = img[offset+1];
-            img_out[shift_offset+2] = img[offset+1];  
-            
-            //cfa_kernel(img,2,row+3,col+2,i_width,pix_out);
-            shift_offset += (width*3-3);
-            img_out[shift_offset] = img[offset+i_width];
-            img_out[shift_offset+1] = img[offset+i_width];
-            img_out[shift_offset+2] = img[offset+i_width];
-            
-            //cfa_kernel(img,0,row+3,col+3,i_width,pix_out);
-            shift_offset +=3 ;
-            img_out[shift_offset] = img[offset+i_width+1];
-            img_out[shift_offset+1] = img[offset+i_width+1];
-            img_out[shift_offset+2] = img[offset+i_width+1];
-            */
+
         } 
+        else if (bayer_pattern==5 ) {          
+
+            cfa_kernel(img,0,row+2,col+2,i_width,maxval,pix_out);
+            int b = BOUND(img[offset+1],0,16384);
+            int g = BOUND((img[offset]+img[offset+i_width+1])/2,0,16384);
+            int r = BOUND(img[offset+i_width],0,16384);
+            //b = g = r = (b+g+r)/3;
+            img_out[shift_offset] = b;
+            img_out[shift_offset+1] = g;
+            img_out[shift_offset+2] = r;
+            
+            cfa_kernel(img,1,row+2,col+3,i_width,maxval,pix_out);
+            shift_offset +=3 ;
+            img_out[shift_offset] = b;
+            img_out[shift_offset+1] = g;
+            img_out[shift_offset+2] = r;
+            
+            cfa_kernel(img,3,row+3,col+2,i_width,maxval,pix_out);
+            shift_offset += (width*3-3);
+            img_out[shift_offset] = b;
+            img_out[shift_offset+1] = g;
+            img_out[shift_offset+2] = r;
+            
+            cfa_kernel(img,2,row+3,col+3,i_width,maxval,pix_out);
+            shift_offset +=3 ;
+            img_out[shift_offset] = b;
+            img_out[shift_offset+1] = g;
+            img_out[shift_offset+2] = r;      
+        }        
     }
 }

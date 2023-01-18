@@ -1,12 +1,12 @@
 import cv2 
 import cupy as cp
 import yaml
-
+import rawpy
 
 def clipping(img):
     cp.clip(img, 0, 255, out=img)
     return img
-def RGB_to_Bayer(path='kodim19.png') :
+def RGB_to_Bayer(path='DSCF0173_H_MTF.bmp') :
     with open('tool/convert.cu', 'r') as file:
         code = file.read()
     convert = cp.RawKernel(code, 'convert')
@@ -31,7 +31,7 @@ def RGB_to_Bayer(path='kodim19.png') :
     #cv2.waitKey(3000)
     #cv2.destroyAllWindows()
 
-def C_R(path='kodim19.png') :
+def C_R(path='kodim01.png') :
     with open('tool/convert.cu', 'r') as file:
         code = file.read()
     convert = cp.RawKernel(code, 'convert_C_R')
@@ -76,10 +76,13 @@ def C_R_RawRecover(path='ov10642_With_Noise.raw',bit=12) :
     return CR*4/max       
 if __name__ == '__main__':
 
-    #img = C_R()
-    img = C_R_RawRecover()
-    cv2.imshow('cv', img.get())
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    img = C_R()
+    #img = C_R_RawRecover()
+    #rawImg = rawpy.imread('IMG_7796.CR2')
+    #rgbImg = rawImg.raw_image_visible
+    #print(rgbImg.shape)
+    #cv2.imshow('cv', img.get())
+    #cv2.waitKey(0)
+    #cv2.destroyAllWindows()
     
-    cv2.imwrite('C_R.jpg', img.get()*255)
+    cv2.imwrite('C_R.jpg', img.get())
