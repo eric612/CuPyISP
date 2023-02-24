@@ -14,3 +14,7 @@ python3 isp_pipeline.py
 - [ ] Unsharp mask / Deconvolution cuda 
 - [ ] RCCB, bayer demosaicing cuda 
 - [ ] Super resolution
+
+## Acknowledgements
+
+[cruxopen/openISP](https://github.com/cruxopen/openISP)
