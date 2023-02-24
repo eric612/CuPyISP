@@ -12,5 +12,5 @@ python3 isp_pipeline.py
 - [ ] Fisheye model cuda 
 - [ ] HDR cuda 
 - [ ] Unsharp mask / Deconvolution cuda 
-- [ ] RCCB, bayer demosaicing 
+- [ ] RCCB, bayer demosaicing cuda 
 - [ ] Super resolution
