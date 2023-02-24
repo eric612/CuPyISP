@@ -255,7 +255,7 @@ if __name__ == '__main__':
         gb_gain = 1.0*ae_gain
         b_gain = 1.0*ae_gain
         done = isp_pipeline(rawimg,raw_w,raw_h,gamma=0.5,bl=[-0,-0,-0,-0],dpc_thres=100,
-            r_gain=r_gain,gr_gain=gr_gain,gb_gain=gb_gain,b_gain=b_gain,nr='disable',bayer_pattern='ccrc',save_picture='disable')  
+            r_gain=r_gain,gr_gain=gr_gain,gb_gain=gb_gain,b_gain=b_gain,nr='enable',bayer_pattern='ccrc',save_picture='disable')  
     elif 'batch' in sys.argv[1]:
         rawImg = rawpy.imread(sys.argv[1])
         batch()
