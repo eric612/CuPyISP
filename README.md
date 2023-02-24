@@ -1,7 +1,8 @@
 # CuPyISP
 Image pipeline CUDA version , for AI trainning , data augumentation , ISP simulator , ... 
 
-# ISP Flow
-![plot](./images/output-graph.gv.png)
+# Usage
 
-# Processing time 
+```
+python3 isp_pipeline.py
+```
