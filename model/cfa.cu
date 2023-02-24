@@ -297,26 +297,35 @@ void Calc_C(const short* img,int is_color, int row, int col,int width,short *pix
     if (is_color == 0) {
         int h = abs(img[offset+1]*2 - img[offset+1+width] - img[offset+1-width])+abs(img[offset-1]*2- img[offset-1-width]- img[offset-1+width])+abs((img[offset+width] - img[offset-width]));
         int v = abs(img[offset+width]*2 - img[offset+width-1] - img[offset+width+1])+abs(img[offset-width]*2 - img[offset-width-1] - img[offset-width+1]) + abs(img[offset+1] - img[offset-1]);
-        int l1 = abs(img[offset+1] - img[offset-width])+abs(img[offset+width] - img[offset-1])+abs(img[offset+width+1] + img[offset-width-1]); //right-bottom to left-top
-        int l2 = abs(img[offset+width] - img[offset+1])+abs(img[offset-1] - img[offset-width])+abs(img[offset+width-1] + img[offset-width+1]); //left-bottom to right-top
+
 
         
         int gradient[10],interp[10];
         gradient[0] = h;
         gradient[1] = v;
-        gradient[2] = l1;
-        gradient[3] = l2;
+
         //gradient[4] = l3;
         
         interp[0] = (img[offset+width] + img[offset-width])/2;
         interp[1] = (img[offset+1] + img[offset-1])/2;
         interp[2] = (img[offset+width+1] + img[offset-width-1])/2;
         interp[3] = (img[offset+width-1] + img[offset-width+1])/2;
-        interp[4] = (img[offset+width] + img[offset-width] + img[offset+1] + img[offset-1])/4;
         
 
         int minima = 65536;
         int index = 0;
+        for (int i =0;i<2;i++) {
+            if(gradient[i]<minima) {
+                minima = gradient[i];
+                index = i;
+            }
+        }
+        lum = interp[index];
+        int l1 = abs(img[offset+1] - img[offset-width])+abs(img[offset+width] - img[offset-1])+abs(lum*2 - img[offset+width+1] - img[offset-width-1]); //right-bottom to left-top
+        int l2 = abs(img[offset+width] - img[offset+1])+abs(img[offset-1] - img[offset-width])+abs(lum*2 - img[offset+width-1] - img[offset-width+1]); //left-bottom to right-top
+        gradient[2] = l1;
+        gradient[3] = l2;
+        
         for (int i =0;i<4;i++) {
             if(gradient[i]<minima) {
                 minima = gradient[i];
@@ -324,6 +333,7 @@ void Calc_C(const short* img,int is_color, int row, int col,int width,short *pix
             }
         }
         lum = interp[index];
+        
         int avg = (interp[0]+interp[1]+interp[2]+interp[3])/4;
         int laplacian = abs(avg - img[offset+width]) + abs(avg - img[offset-width]) + abs(avg - img[offset+1]) + abs(avg - img[offset-1]);
         if(laplacian<=minima) {

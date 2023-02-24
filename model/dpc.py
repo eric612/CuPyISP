@@ -4,11 +4,12 @@ import cupy as cp
 class DPC:
     'Dead Pixel Correction'
 
-    def __init__(self, img, thres, mode, clip):
+    def __init__(self, img, thres, mode, clip, bayer_pattern):
         self.img = img
         self.thres = int(thres)
         self.mode = mode
         self.clip = clip
+        self.bayer_pattern = bayer_pattern
         cu = 'model/dpc.cu'
         with open(cu, 'r') as file:
             code = file.read()
@@ -34,12 +35,24 @@ class DPC:
         img_pad = self.padding()
         raw_h = self.img.shape[0]
         raw_w = self.img.shape[1]
-        pad_h = 2
-        pad_w = 2
+
+        pad_w = img_pad.shape[1] - raw_w
+        pad_h = img_pad.shape[0] - raw_h       
+        print(pad_w,pad_h)
+        if self.bayer_pattern == 'rggb':
+            type = 0
+        elif self.bayer_pattern == 'bggr':
+            type = 1
+        elif self.bayer_pattern == 'gbrg':
+            type = 2
+        elif self.bayer_pattern == 'grbg':
+            type = 3
+        elif self.bayer_pattern == 'ccrc':
+            type = 4
         #print(self.mode)
         if self.proc == 'gpu':
             dpc_img = cp.empty((raw_h, raw_w), cp.uint16)
-            self.kernel((raw_w//32,raw_h//24), (32,24), (img_pad,dpc_img,raw_w,raw_h,pad_w,pad_h,int(self.thres)) )
+            self.kernel((raw_w//32,raw_h//24), (16,12), (img_pad,dpc_img,raw_w,raw_h,pad_w,pad_h,int(self.thres),type) )
         else :
             dpc_img = np.empty((raw_h, raw_w), np.uint16)
             for y in range(img_pad.shape[0] - 4):

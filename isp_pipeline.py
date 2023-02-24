@@ -3,8 +3,8 @@ import numpy as np
 import cupy as cp
 import cv2 
 import glob, os
-raw_path = 'ov10642_With_Noise_2023.01.017.raw'
-raw_path = 'ov10642_Without_Noise_2023.01.017.raw'
+raw_path = 'ov10642_With_Noise_2023.01.018.raw'
+#raw_path = 'ov10642_Without_Noise_2023.01.017.raw'
 
 #raw_path = 'ov10642_Without_Noise_2023.01.04.raw'
 #raw_path = 'ov10642_With_Noise_2023.01.04.raw'
@@ -68,7 +68,7 @@ def isp_pipeline(rawimg,raw_w,raw_h,gamma=0.5,bl=[0,0,0,0],dpc_thres=4095,r_gain
     tmp_img = rawimg/maxval
     cv2.imwrite('source.jpg', (tmp_img*255).get()) 
     st = time.time()
-    dpc = DPC(rawimg, dpc_thres, dpc_mode, dpc_clip)
+    dpc = DPC(rawimg, dpc_thres, dpc_mode, dpc_clip, bayer_pattern)
     rawimg_dpc = dpc.execute()
     if save_picture=='enable':
         tmp_img = rawimg_dpc/maxval
@@ -250,12 +250,12 @@ if __name__ == '__main__':
         rawimg = rawimg.reshape([raw_h, raw_w])
         print(cp.amin(rawimg))
         ae_gain = 1.0
-        r_gain = 1.5*ae_gain
+        r_gain = 2.0*ae_gain
         gr_gain = 1.0*ae_gain
         gb_gain = 1.0*ae_gain
         b_gain = 1.0*ae_gain
-        done = isp_pipeline(rawimg,raw_w,raw_h,gamma=1.0,bl=[-0,-0,-0,-0],dpc_thres=60,
-            r_gain=r_gain,gr_gain=gr_gain,gb_gain=gb_gain,b_gain=b_gain,nr='disable',bayer_pattern='ccrc',save_picture='enable')  
+        done = isp_pipeline(rawimg,raw_w,raw_h,gamma=0.5,bl=[-0,-0,-0,-0],dpc_thres=100,
+            r_gain=r_gain,gr_gain=gr_gain,gb_gain=gb_gain,b_gain=b_gain,nr='disable',bayer_pattern='ccrc',save_picture='disable')  
     elif 'batch' in sys.argv[1]:
         rawImg = rawpy.imread(sys.argv[1])
         batch()

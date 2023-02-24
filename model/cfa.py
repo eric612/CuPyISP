@@ -90,7 +90,7 @@ class CFA:
         #pre_maps((raw_w//32,raw_h//24), (16,12), (img_pad,raw_w,raw_h,pad_w,pad_h,maxval,type,pre_map))  # grid, block and arguments  
         pre_maps_c((raw_w//32,raw_h//24), (16,12), (img_pad,raw_w,raw_h,pad_w,pad_h,maxval,type,pre_map_c))  # grid, block and arguments  
         pre_maps_cr((raw_w//32,raw_h//24), (16,12), (img_pad,pre_map_c,raw_w,raw_h,pad_w,pad_h,maxval,type,pre_map_cr))  # grid, block and arguments
-        done = pre_map_cr.get()/4096
+        done = pre_map_c.get()/4096
         #cv2.imshow('cv', done)
         #cv2.waitKey(0)
         #cv2.destroyAllWindows()       
